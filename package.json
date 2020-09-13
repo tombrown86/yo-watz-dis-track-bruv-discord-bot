@@ -1,0 +1,24 @@
+{
+  "name": "yo-watz-dis-track-bruv-discord-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "yo-watz-dis-track-bruv-discord-bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tombrown86/yo-watz-dis-track-bruv-discord-bot.git"
+  },
+  "author": "tom brown",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tombrown86/yo-watz-dis-track-bruv-discord-bot/issues"
+  },
+  "homepage": "https://github.com/tombrown86/yo-watz-dis-track-bruv-discord-bot#readme",
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "discord.js": "^12.3.1",
+    "fs": "0.0.1-security"
+  }
+}
