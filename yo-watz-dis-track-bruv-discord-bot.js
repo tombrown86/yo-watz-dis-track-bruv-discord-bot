@@ -11,6 +11,7 @@ const SNIPPET_LENGTH_SECS = 20;
 const CONVERT_CMD = `ffmpeg -f s16le -ar 48k -ac 2 -i %pcmpath% %wavpath%`;
 const RECOGNIZER_CMD = `python3 /home/tom/repos/freezam/interface.py identify --pathfile="%path%" --type=2`; // 2 is better apparently
 const RECOGNIZER_CMD2 = `python3 /home/tom/repos/freezam/interface.py identify --pathfile="%path%" --type=1`;
+const AUDIO_FILE_DIR = '/tmp';
 
 
 class Silence extends Readable {
@@ -23,6 +24,7 @@ client.on('message', async message => {
 	// Join the same voice channel of the author of the message
 	
 	if(['!track', '!trackdebug'].indexOf(message.content) > -1)  {
+        const debug = message.content === '!trackdebug';
         try {
             message.channel.send('listening...');
             if (message.member.voice.channel) {
@@ -33,23 +35,30 @@ client.on('message', async message => {
 
 
                 const audioStream = connection.receiver.createStream(user, {mode: 'pcm', end: "manual"});
-                const path = '/tmp/watzdistrack_audio_'+(new Date().getTime());
+                const path = AUDIO_FILE_DIR + '/watzdistrack_audio_' + (new Date().getTime());
                 audioStream.pipe(fs.createWriteStream(path));
 
                 setTimeout(function() {
                     message.member.voice.channel.leave();
                     message.channel.send('let me think...');
-                    
 
                     exec(CONVERT_CMD.replace('%pcmpath%', path).replace('%wavpath%', path + '.wav'), (error, stdout, stderr) => {
                         console.log(stdout);
                     }).on('close', function () {
-                        exec_recognize(RECOGNIZER_CMD, path + '.wav', msg => {message.channel.send(msg)},
-                            // onsuccess
-                            path => del_recording, 
-                            // onfail
-                            function() {exec_recognize(RECOGNIZER_CMD2, path + '.wav',  msg => {message.channel.send(msg)}, path => del_recording)
-                        });
+                        exec_recognize(RECOGNIZER_CMD,
+                            path + '.wav',
+                            debug,
+                            msg => {message.channel.send(msg)}, // printout
+                            path => del_recording, // onsuccess
+                            function() { // onfail
+                                exec_recognize(RECOGNIZER_CMD2,
+                                    path + '.wav',
+                                    debug,
+                                    msg => {message.channel.send(msg)}, // printout
+                                    path => del_recording // onsuccess
+                                );
+                            }
+                        );
                     });
                 }, SNIPPET_LENGTH_SECS * 1000)
             } else {
@@ -67,37 +76,35 @@ function del_recording(path) {
         fs.unlinkSync(path);
         fs.unlinkSync(path + '.wav');
     } catch(err) {
-        console.error(err)
+        console.error(err);
     }
 }
 
-function exec_recognize(cmd_template, path, out, onsuccess, onfail) {
+function exec_recognize(cmd_template, path, debug, printout, onsuccess, onfail) {
     const cmd = cmd_template.replace('%path%', path);
-    out(cmd);
+    debug && printout('try recognize with cmd: ' + cmd);
 
     exec(cmd, (error, stdout, stderr) => {
         if (error) {
             console.log(`oh dear: ${error.message}`);
-            out(`oh dear: ${error.message}`);
+            debug && printout(`oh dear: ${error.message}`);
             onfail && onfail();
             return;
         }
         if (stderr) {
             console.log(`oh dear: ${stderr}`);
-            out(`oh dear: ${stderr}`);
+            debug && printout(`oh dear: ${stderr}`);
             onfail && onfail();
             return;
         }
-        
         if(stdout.indexOf('The best match is' > -1)) {
             console.log(stdout.split("\n"));
-            out(stdout.split("\n")[0]);
+            printout(stdout.split("\n")[0]);
             onsuccess && onsuccess();
         } else {
+            debug && printout('failed');
             onfail && onfail();
         }
-
-
     });
 }
 
